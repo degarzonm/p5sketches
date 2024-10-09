@@ -29,30 +29,38 @@ let ui;
 let buffers = {}; // Buffer para dibujar el grilla
 
 function setup() {
-  cnv = createCanvas(1200, 800);
-  //zooom zoom
-  // Attach the mouseWheel event listener to the canvas element
-  cnv.elt.addEventListener("wheel", (e) => {
+  const canvas = createCanvas(1200, 800);
+  // Aquí seleccionamos el contenedor con id 'p5-canvas-container' para que el canvas se inserte en ese lugar
+  canvas.parent('p5-canvas-container'); // Asignar el canvas al elemento <main> con id
+
+  // Configuración de controles de zoom y movimiento
+  canvas.elt.addEventListener("wheel", (e) => {
+    e.preventDefault()
     Controls.zoom(controls).worldZoom(e);
   });
-  cnv.elt.addEventListener("contextmenu", (e) => e.preventDefault());
 
+// Evitar el comportamiento predeterminado del clic dentro del canvas
+canvas.elt.addEventListener("mousedown", (e) => {
+  // Verificar si el botón es el del clic central (botón 1)
+  if (e.button === 1) {
+    e.preventDefault(); // Prevenir el comportamiento predeterminado
+  }
+});
+  canvas.elt.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // Configuración de la grilla
   cols = width / tamCelda;
   filas = height / tamCelda;
-
-  // Crear el buffer
+  
   buffers["altura"] = createGraphics(width, height);
   buffers["caminado"] = createGraphics(width, height);
   buffers["recursos"] = createGraphics(width, height);
   buffers["area_recursos"] = createGraphics(width, height);
-  buffers["casas"] = createGraphics(width, height); // TO DO
-  // Crear interfaz de usuario
-  ui = new UI();
-  // Crear la matriz de casillas organizada como un diccionario
-  iniciaGrilla(buffers);
+  buffers["casas"] = createGraphics(width, height);
 
-  // Log para verificar la estructura de datos
-  //console.log(grilla);
+  // Crear la interfaz de usuario
+  ui = new UI();
+  iniciaGrilla(buffers);
 }
 
 function draw() {
@@ -133,6 +141,7 @@ function actualizaCamino() {
 }
 
 function mousePressed(e) {
+  if ( mouseIsInsideCanvas()){
   if (mouseButton === LEFT) {
     // Verifica si es clic izquierdo
     // Convertir las coordenadas de la pantalla a las coordenadas del mundo
@@ -223,17 +232,24 @@ function mousePressed(e) {
     }
   }
 }
+}
 
 function mouseDragged(e) {
-  if (mouseButton === CENTER) {
+  if (mouseButton === CENTER&& mouseIsInsideCanvas()) {
     // Check if the middle mouse button is used for dragging
     Controls.move(controls).mouseDragged(e);
   }
 }
 
 function mouseReleased(e) {
-  if (mouseButton === CENTER) {
+  if (mouseButton === CENTER&& mouseIsInsideCanvas()) {
     // Check if the middle mouse button is released
     Controls.move(controls).mouseReleased(e);
   }
+}
+
+// Función auxiliar para determinar si el mouse está dentro del canvas
+function mouseIsInsideCanvas() {
+  // Verificar si las coordenadas del mouse están dentro del tamaño del canvas
+  return mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height;
 }

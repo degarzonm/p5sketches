@@ -1,26 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/addons/p5.sound.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <meta charset="utf-8" />
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Poblados Simulator </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Fuente de Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <!-- Librerías p5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/addons/p5.sound.min.js"></script>
+</head>
+<body>
 
-  </head>
-  <body>
-    <main>
+<header>
+  <h1>Poblados Simulator</h1>
+</header>
+
+<div class="container">
+  <a href="../index.html" class="back-link">← Volver al Catálogo</a>
+  
+  <!-- Contenedor para el canvas -->
+  <div class="project-page">
+    <main id="p5-canvas-container">
+      <!-- El canvas de p5.js se dibujará aquí -->
     </main>
-    <script src="utils.js"></script>
-    <script src="zoom.js"></script>
-    <script src="campo.js"></script>
-    <script src="casilla.js"></script>
-    <script src="casa.js"></script>
-    <script src="aStar.js"></script>
-    <script src="quadTree.js"></script>
-    <script src="ui.js"></script>
-    <script src="objetivos.js"></script>
-    <script src="entidades.js"></script>
-    <script src="dataStructures.js"></script>
-    <script src="sketch.js"></script>
-  </body>
+  </div>
+  
+  <!-- Contenedor para los controles de UI -->
+  <div id="ui-container"></div>
+</div>
+
+<footer>
+  <p>&copy; 2024 degarzonm. Todos los derechos reservados.</p>
+</footer>
+
+<!-- Scripts del Proyecto -->
+<script src="utils.js"></script>
+<script src="zoom.js"></script>
+<script src="campo.js"></script>
+<script src="casilla.js"></script>
+<script src="casa.js"></script>
+<script src="aStar.js"></script>
+<script src="quadTree.js"></script>
+<script src="ui.js"></script>
+<script src="objetivos.js"></script>
+<script src="entidades.js"></script>
+<script src="dataStructures.js"></script>
+<script src="sketch.js"></script>
+
+</body>
 </html>
