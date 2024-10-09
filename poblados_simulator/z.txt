@@ -1,0 +1,1852 @@
+// Contenido del archivo: aStar.js
+// Función para calcular el camino utilizando A* entre los puntos A y B, retorna una lista con las casillas que componen el camino
+
+function calculaCamino(
+  inicio,
+  destino,
+  factorEnergía,
+  factorDistancia,
+  factorCamino
+) {
+  // Inicializar estructuras temporales
+  let minHeap = new MinHeap();
+  let visitados = new Set();
+
+  // la grilla utiliza (i, j) como llave de su diccionario para obtener la celda
+  let claveInicio = `(${inicio.i},${inicio.j})`;
+  let claveDestino = `(${destino.i},${destino.j})`;
+
+  // Agregar la casilla inicial al minHeap
+  minHeap.push({ camino: [grilla[claveInicio]] }, 0);
+
+  while (minHeap.size() > 0) {
+    // Tomar la lista con menor valor de heap
+    let actual = minHeap.pop();
+    let caminoActual = actual.camino;
+    let celdaActual = caminoActual[caminoActual.length - 1];
+    let claveActual = `(${celdaActual.i},${celdaActual.j})`;
+
+    // Verificar si hemos llegado a la casilla destino
+    if (esDestino(celdaActual, destino)) {
+      return caminoActual;
+    }
+
+    // Marcar la casilla como visitada
+    visitados.add(claveActual);
+
+    // Evaluar las 8 casillas vecinas
+    let vecinos = obtenerVecinos(celdaActual);
+    for (let vecino of vecinos) {
+      let claveVecino = `(${vecino.i},${vecino.j})`;
+      if (!visitados.has(claveVecino)) {
+        let nuevoCamino = caminoActual.slice(); // Copiar la lista actual
+        nuevoCamino.push(vecino); // Agregar la casilla vecina
+
+        let prioridad = calcularPrioridad(
+          celdaActual,
+          vecino,
+          destino,
+          factorEnergía,
+          factorDistancia,
+          factorCamino
+        ); // Calcular la prioridad con la nueva función
+        minHeap.push({ camino: nuevoCamino }, prioridad); // Agregar la nueva lista al minHeap con su prioridad
+      }
+    }
+  }
+
+  // Retornar un camino vacío si no se encuentra ninguno
+  return [];
+}
+
+// Función para verificar si una casilla cumple la condición de ser el destino
+function esDestino(celda, destino) {
+  return celda.i === destino.i && celda.j === destino.j;
+}
+
+// Función que calcula el valor de heap basado en la diferencia de altura, la distancia y el valor caminado acumulado en la celda
+function calcularPrioridad(
+  celdaActual,
+  vecino,
+  destino,
+  factorEnergía,
+  factorDistancia,
+  factorCamino
+) {
+  // Calcular la energía
+  let energia =
+    Math.abs(vecino.valores.altura - celdaActual.valores.altura) / MAX_ALTURA;
+
+  // Calcular la distancia
+  let dx = destino.i - vecino.i;
+  let dy = destino.j - vecino.j;
+  let distancia =
+    Math.sqrt(dx * dx + dy * dy) / Math.sqrt(width * width + height * height);
+
+  // Calcular el camino
+  let camino = Math.abs(vecino.caminado) / (100 - maxCaminadoTemp);
+
+  // Multiplicaciones de cada componente
+  let componenteEnergía = factorEnergía * energia * 10000;
+  let componenteDistancia = factorDistancia * distancia * 10000;
+  let componenteCamino = factorCamino * camino;
+
+  // Calcular la prioridad final
+  let prioridadFinal =
+    componenteEnergía + componenteDistancia + componenteCamino;
+
+  return prioridadFinal;
+}
+
+function dibujaCamino(camino) {
+  // Pintar el camino con un degradado de verde a rojo
+  let tamCamino = camino.length;
+  for (let i = 0; i < tamCamino; i++) {
+    let t = i / tamCamino;
+    let r = lerp(0, 255, t);
+    let g = lerp(120, 20, t);
+    let b = lerp(255, 0, t);
+    fill(r, g, b, 0);
+    let cell = camino[i];
+    stroke(g, b, r);
+    strokeWeight(1);
+    rect(cell.x, cell.y, tamCelda, tamCelda);
+  }
+
+  if (posInicio) {
+    fill(0, 255, 0);
+    ellipse(
+      posInicio.i * tamCelda + tamCelda / 2,
+      posInicio.j * tamCelda + tamCelda / 2,
+      tamCelda / 2
+    );
+  }
+  if (posFinal) {
+    fill(255, 0, 0);
+    ellipse(
+      posFinal.i * tamCelda + tamCelda / 2,
+      posFinal.j * tamCelda + tamCelda / 2,
+      tamCelda / 2
+    );
+  }
+}
+
+
+// Contenido del archivo: campo.js
+let maxCaminadoTemp = 0;
+let NOISE_DETAIL_ALTURA = 3;
+let NOISE_DETAIL_RECURSOS = 0.1;
+
+let NOISE_FALLOFF_ALTURA = 0.8;
+let NOISE_FALLOFF_RECURSOS = 0.2;
+
+//inicializa la estructura de control de las casillas
+function iniciaGrilla(buffers) {
+  // Parámetros para la altura del terreno
+ 
+  let escalaTerreno = 0.06;
+  let escalaOffsetTerreno = random(0, 10000);
+
+  // Parámetros para la probabilidad de recurso
+  let escalaRecursos = 0.06;
+  let escalaOffsetRecursos = random(0, 10000);
+
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < filas; j++) {
+      let clave = `(${i},${j})`;
+      noiseDetail(NOISE_DETAIL_ALTURA, NOISE_FALLOFF_ALTURA);
+      // Generar altura del terreno
+      let altura = noise(i * escalaTerreno + escalaOffsetTerreno, j * escalaTerreno + escalaOffsetTerreno) * MAX_ALTURA;
+      
+      noiseDetail(NOISE_DETAIL_RECURSOS, NOISE_FALLOFF_RECURSOS);
+      // Generar probabilidad de recurso
+      let probabilidadRecurso = floor(100*noise(i * escalaRecursos + escalaOffsetRecursos, j * escalaRecursos + escalaOffsetRecursos))-10;
+
+      grilla[clave] = new Casilla(
+        i * tamCelda,
+        j * tamCelda,
+        i,
+        j,
+        tamCelda,
+        {
+          altura: altura,
+          probabilidadRecurso: probabilidadRecurso 
+        }
+      );
+    }
+  }
+  dibujaAlturas(buffers.altura); // Dibujar la grilla en el buffer al inicializar
+  dibujaAreaRecursos(buffers.area_recursos);
+}
+
+function dibujaAlturas(buffer) {
+  buffer.clear();
+  for (let clave in grilla) {
+    grilla[clave].dibujaAltura(buffer);
+  }
+}
+
+function dibujaCaminados(buffer) {
+  buffer.clear();
+
+  // Calcular maxCaminadoTemp para normalizar
+  maxCaminadoTemp = 0;
+  for (let clave in grilla) {
+    if (grilla[clave].caminado > maxCaminadoTemp) {
+      maxCaminadoTemp = grilla[clave].caminado;
+    }
+  }
+
+  for (let clave in grilla) {
+    grilla[clave].dibujaCaminado(buffer, maxCaminadoTemp);
+  }
+}
+
+function dibujaAreaRecursos(buffer) {
+  buffer.clear();
+  for (let clave in grilla) {
+    grilla[clave].dibujaProbRecursos(buffer);
+  }
+}
+
+// Función para obtener los vecinos de una casilla
+function obtenerVecinos(celda) {
+  let celdasVecinas = [];
+  for (let di = -1; di <= 1; di++) {
+    for (let dj = -1; dj <= 1; dj++) {
+      if (di != 0 || dj != 0) {
+        let i = celda.i + di;
+        let j = celda.j + dj;
+        if (i >= 0 && i < cols && j >= 0 && j < filas) {
+          celdasVecinas.push(grilla[`(${i},${j})`]);
+        }
+      }
+    }
+  }
+  return celdasVecinas;
+}
+
+
+// Contenido del archivo: casa.js
+// Clase para representar la Casa
+class Casa {
+  constructor(i, j, colorAldeano) {
+    this.id = generateUUID();
+    this.i = i;
+    this.j = j;
+    this.orientacion = radians(random(-30, 30));
+    this.celdas = [];
+    this.recurso_0 = COSTO_EXPANSION_CASA;
+    this.colorBase = lerpColor(colorAldeano, color(255, 255, 255, 5), 0.5);
+    this.colorEntrada = colorAldeano;
+    this.abandonada = false; // Nueva propiedad para saber si la casa está abandonada
+    this.tAbandonada = 0; // Contador de frames desde que fue abandonada
+    this.ocupantes = []; // Lista de aldeanos ocupantes
+
+    this.creaCeldas();
+  }
+
+  actualiza(aumento) {
+    //console.log("updating")
+    this.recurso_0 += aumento;
+    if (this.recurso_0 >= COSTO_EXPANSION_CASA /*  *this.cells.length  */) {
+      //console.log('recurso_0 supera el umbral, llamando a crece() ');
+      this.crece();
+    }
+  }
+
+  creaCeldas() {
+    let posEntrada = { i: this.i, j: this.j };
+
+    // Configurar la casilla de entrada
+    if (
+      posEntrada.i >= 0 &&
+      posEntrada.i < cols &&
+      posEntrada.j >= 0 &&
+      posEntrada.j < filas
+    ) {
+      let claveCelda = `(${posEntrada.i},${posEntrada.j})`;
+      let celda = grilla[claveCelda];
+      if (!celda.ocupada) {
+        celda.ocupada = true;
+        celda.casa = this; // Referencia a la casa
+        celda.caminado = 40; // Valor de caminando para la entrada
+        celda.colorRelleno = this.colorEntrance; // Mismo color que el aldeano
+        this.celdas.push(posEntrada);
+        this.celdaEntrada = celda; // Guardar referencia a la casilla de entrada
+      }
+    }
+    this.crece();
+
+ 
+  }
+
+  crece() {
+    // 1. Encontrar las celdas vecinas que no están ocupadas
+    this.recurso_0 -= COSTO_EXPANSION_CASA; // Restar recursos
+    if(this.recurso_0 >= COSTO_EXPANSION_CASA){
+      this.crece();
+    }
+    let celdasVecinas = [];
+    let posCeldas = new Set(this.celdas.map((pos) => `(${pos.i},${pos.j})`));
+
+    // Desplazamientos solo en las direcciones cardinales (arriba, abajo, izquierda, derecha)
+    let direcciones = [
+      { di: -1, dj: 0 }, // arriba
+      { di: 1, dj: 0 }, // abajo
+      { di: 0, dj: -1 }, // izquierda
+      { di: 0, dj: 1 }, // derecha
+    ];
+
+    for (let pos of this.celdas) {
+      let i = pos.i;
+      let j = pos.j;
+
+      for (let { di, dj } of direcciones) {
+        let ni = i + di;
+        let nj = j + dj;
+        if (ni >= 0 && ni < cols && nj >= 0 && nj < filas) {
+          let claveVecina = `(${ni},${nj})`;
+          if (!posCeldas.has(claveVecina)) {
+            let celdaVecina = grilla[claveVecina];
+            let maxDiffAltura = MAX_DIFF_ALTURA + this.celdas.length / 4;
+            if (
+              !celdaVecina.ocupada &&
+              celdaVecina.caminado < MAX_CAMINADO &&
+              Math.abs(
+                celdaVecina.valores.altura - this.celdaEntrada.valores.altura
+              ) <= maxDiffAltura
+            ) {
+              celdasVecinas.push(celdaVecina);
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Seleccionar la casilla con menor valor de 'caminado'
+    if (celdasVecinas.length > 0) {
+      // Encontrar el valor mínimo de 'caminado'
+      let minCaminado = Infinity;
+      for (let celda of celdasVecinas) {
+        if (celda.caminado < minCaminado) {
+          minCaminado = celda.caminado;
+        }
+      }
+
+      // Filtrar las casillas que tienen el valor mínimo de 'caminado'
+      let filteredCeldas = celdasVecinas.filter(
+        (cell) => cell.caminado === minCaminado
+      );
+      
+      // En caso de empate, seleccionar la casilla con la distancia más corta a la celdaEntrada
+      let celdaGanadora = filteredCeldas[0]; // Empezamos asumiendo que la primera es la ganadora
+      let minDistancia = Infinity;
+      
+      const centroEntrada = this.celdaEntrada.centro(); // Obtener el centro de la casilla de entrada
+
+      for (let celda of filteredCeldas) {
+        let centroCelda = celda.centro();
+        let distancia = dist(centroEntrada.x, centroEntrada.y, centroCelda.x, centroCelda.y);
+
+        if (distancia < minDistancia) {
+          minDistancia = distancia;
+          celdaGanadora = celda;
+        }
+      }
+
+      // 3. Agregar la casilla seleccionada a la casa y marcarla como ocupada
+      let pos = { i: celdaGanadora.i, j: celdaGanadora.j };
+      this.celdas.push(pos);
+      celdaGanadora.ocupada = true;
+      celdaGanadora.casa = this; // Referencia a la casa
+      celdaGanadora.caminado = -100; // 
+      celdaGanadora.colorRelleno = this.colorBase; // Establecer el color del techo
+    } else {
+      // No hay celdas vecinas libres, la casa pierde recursos
+      this.recurso_0 -= COSTO_EXPANSION_CASA; // Restablecer recursos
+    }
+
+    if (this.celdas.length > 0) {
+      for (let pos of this.celdas) {
+        let celda = grilla[`(${pos.i},${pos.j})`];
+        celda.caminado = -100;
+      }
+    }
+  }
+
+
+  reclamar(aldeano) {
+    this.abandonada = false;
+    this.colorEntrada = aldeano.clan;
+    this.colorBase = lerpColor(
+      this.colorEntrada,
+      color(255, 255, 255, 5),
+      0.5
+    );
+  }
+
+  eliminaCelda() {
+    let pos = this.celdas.pop(); // Elimina la última casilla (excepto la entrada)
+    let celda = grilla[`(${pos.i},${pos.j})`];
+    celda.ocupada = false;
+    celda.casa = null;
+    celda.actualizaColor();
+  }
+
+  handleAbandono() {
+    if (this.abandonada) {
+      this.tAbandonada++;
+      if (this.tAbandonada % 10 === 0 && this.celdas.length > 3) {
+        this.eliminaCelda(); // Elimina una casilla cada 30 frames
+      }
+    }
+  }
+
+  abandonar() {
+    this.abandonada = true;
+    this.colorEntrada = color(10, 10, 10, 90);
+    this.colorBase = lerpColor(
+      this.colorEntrada,
+      color(255, 255, 255, 5),
+      0.1
+    );
+  }
+
+  dibuja() {
+    push();
+
+    // Calcular el centro de la casa
+    let centroX = (this.i + 0.5) * tamCelda;
+    let centroY = (this.j + 0.5) * tamCelda;
+
+    translate(centroX, centroY);
+    //rotate(this.rotation);
+
+    // Dibujar cada casilla
+    for (let pos of this.celdas) {
+      let dx = (pos.i - this.i - 0.5) * tamCelda;
+      let dy = (pos.j - this.j - 0.5) * tamCelda;
+
+      // Determinar si esta casilla es la entrada
+      if (this.celdaEntrada) {
+        let esEntrada =
+          pos.i === this.celdaEntrada.i && pos.j === this.celdaEntrada.j;
+
+        if (esEntrada) {
+          fill(this.colorEntrada);
+          stroke(0);
+          strokeWeight(tamCelda * 0.25);
+        } else {
+          noStroke();
+          fill(this.colorBase);
+        }
+      }
+      rect(dx, dy, tamCelda * 1.1, tamCelda * 1.1);
+    }
+
+    pop();
+  }
+}
+
+
+// Contenido del archivo: casilla.js
+// Definición de la clase Casilla
+class Casilla {
+  
+  constructor(x, y, i, j,  tamaño, valores) {
+    this.x = x;
+    this.y = y;
+    this.i = i;
+    this.j = j; 
+    
+    this.tam = tamaño;
+    this.valores = valores;
+    this.info = false;
+    this.caminado = 1; 
+    this.ocupada = false;
+    this.casa = null; 
+    this.colorRelleno = color(255);
+    this.actualizaColor();
+  }
+
+  centro() {
+    return { x: this.x + this.tam / 2, y: this.y + this.tam / 2 };
+  }
+  
+  actualizaColor() {
+    // Definir los umbrales de altura
+    const azulm = 100;
+    const verde1m = 250;
+    const verde2m = 500;
+    const cafem = 750;
+    const blancom = 1000;
+
+    // Definir los colores para cada rango de tiempo
+    const colorAzulOscuro = color(0, 0, 139);
+    const colorAzulClaro = color(173, 216, 230);
+    const colorVerdeOscuro = color(0, 128, 0);
+    const colorVerdeClaro = color(34, 139, 34);
+    const colorCafe = color(139, 69, 19);
+    const colorBlanco = color(255, 250, 250);
+
+    // Obtener el valor de tiempo
+    let altura = this.valores.altura;
+
+    // Asignar el color correspondiente basado en el valor de tiempo
+    if (altura <= azulm) {
+      this.colorRelleno = lerpColor(
+        colorAzulOscuro,
+        colorAzulClaro,
+        altura / azulm
+      );
+    } else if (altura <= verde1m) {
+      this.colorRelleno = lerpColor(
+        colorAzulClaro,
+        colorVerdeOscuro,
+        (altura - azulm) / (verde1m - azulm)
+      );
+    } else if (altura <= verde2m) {
+      this.colorRelleno = lerpColor(
+        colorVerdeOscuro,
+        colorVerdeClaro,
+        (altura - verde1m) / (verde2m - verde1m)
+      );
+    } else if (altura <= cafem) {
+      this.colorRelleno = lerpColor(
+        colorVerdeClaro,
+        colorCafe,
+        (altura - verde2m) / (cafem - verde2m)
+      );
+    } else {
+      // blancom
+      this.colorRelleno = lerpColor(
+        colorCafe,
+        colorBlanco,
+        (altura - cafem) / (blancom - cafem)
+      );
+    }
+  }
+  
+  dibujaAltura(buffer) {
+    buffer.fill(this.colorRelleno);
+    buffer.stroke(22, 22, 22, 22);
+    buffer.strokeWeight(0.3);
+    buffer.rect(this.x, this.y, this.tam, this.tam);
+  }
+
+  // Método para mostrar la casilla con un color basado en el tiempo caminado
+  dibujaCaminado(buffer, maxCaminadoTemp) {
+    // Define los colores
+    let colorAzul = color(10, 10, 255, 180); 
+    let colorGris = color(128, 128, 128, 17); 
+
+    // Calcula 't' basado en 'caminado'
+    let t = constrain(map(this.caminado, 0, maxCaminadoTemp / 4, 0, 1), 0, 1);
+
+    // Interpola entre los colores
+    let caminadocolor = lerpColor(colorGris, colorAzul, t);
+
+    // Apply the color and draw the rectangle
+    buffer.fill(caminadocolor);
+    buffer.noStroke();
+    buffer.rect(this.x, this.y, this.tam, this.tam);
+}
+  
+  dibujaProbRecursos(buffer){
+    let probabilidad = this.valores.probabilidadRecurso;
+    let colorProbabilidad = lerpColor(color(0, 0, 0,200), color(0, 255, 0,120), probabilidad/200);
+    buffer.fill(colorProbabilidad);
+    buffer.stroke(22, 22, 22, 22);
+    buffer.strokeWeight(0.3);
+    buffer.rect(this.x, this.y, this.tam, this.tam );
+  }
+
+  // Método para mostrar la casilla
+  dibuja(buffer) {
+    //this.updateColor();
+
+    let colorFinal = this.colorRelleno;
+
+    if (ui.mostrarCaminado) {
+      // Atenuar el color original
+      let atenuado = lerpColor(this.colorRelleno, color(255), 0.2);
+      // Color azul basado en "caminado"
+      let azulIntensity = map(this.caminado, 0, maxCaminadoTemp / 4, 0, 255);
+      let caminadocolor = color(0, 0, azulIntensity);
+      // Combinar colores
+      colorFinal = lerpColor(atenuado, caminadocolor, 0.8);
+    }
+
+    buffer.fill(colorFinal);
+    buffer.stroke(22, 22, 22, 22);
+    buffer.strokeWeight(0.3);
+    buffer.rect(this.x, this.y, this.tam, this.tam);
+
+    
+  }
+}
+
+
+// Contenido del archivo: dataStructures.js
+class MinHeap {
+  constructor() {
+    this.heap = [];
+  }
+
+  push(valor, prioridad) {
+    this.heap.push({ valor: valor, prioridad: prioridad });
+    this.bubbleUp();
+  }
+
+  pop() {
+    if (this.heap.length === 1) {
+      return this.heap.pop().valor;
+    }
+    const min = this.heap[0].valor;
+    this.heap[0] = this.heap.pop();
+    this.bubbleDown();
+    return min;
+  }
+
+  bubbleUp() {
+    let indice = this.heap.length - 1;
+    while (indice > 0) {
+      let elemento = this.heap[indice];
+      let indicePadre = Math.floor((indice - 1) / 2);
+      let padre = this.heap[indicePadre];
+      if (elemento.prioridad >= padre.prioridad) break;
+      this.heap[indice] = padre;
+      this.heap[indicePadre] = elemento;
+      indice = indicePadre;
+    }
+  }
+
+  bubbleDown() {
+    let indice = 0;
+    let tam = this.heap.length;
+    let elemento = this.heap[0];
+    while (true) {
+      let hijoIzqIndex = 2 * indice + 1;
+      let hijoDerIndex = 2 * indice + 2;
+      let hijoIzq, hijoDer;
+      let intercambiar = null;
+
+      if (hijoIzqIndex < tam) {
+        hijoIzq = this.heap[hijoIzqIndex];
+        if (hijoIzq.prioridad < elemento.prioridad) {
+          intercambiar = hijoIzqIndex;
+        }
+      }
+
+      if (hijoDerIndex < tam) {
+        hijoDer = this.heap[hijoDerIndex];
+        if (
+          (intercambiar === null && hijoDer.prioridad < elemento.prioridad) ||
+          (intercambiar !== null && hijoDer.prioridad < hijoIzq.prioridad)
+        ) {
+          intercambiar = hijoDerIndex;
+        }
+      }
+
+      if (intercambiar === null) break;
+      this.heap[indice] = this.heap[intercambiar];
+      this.heap[intercambiar] = elemento;
+      indice = intercambiar;
+    }
+  }
+
+  size() {
+    return this.heap.length;
+  }
+}
+
+
+
+
+// Contenido del archivo: entidades.js
+class Aldeano {
+  constructor(x, y, clan, maxVel, maxFuerza) {
+    this.clan = clan;
+    this.tam = 7;
+    this.areaBusqueda = 200;
+    this.radioTomar = 10;
+    this.capacidadCarga = 30;
+
+    this.distDesacelera = 20;
+    this.energia = 255;
+    this.colorVida = color(this.energia, 0, 0);
+    
+
+    this.maxVel = maxVel;
+    this.maxFuerza = maxFuerza;
+    this.pos = createVector(x, y);
+    this.vel = createVector(0, 0);
+    this.acel = createVector(0, 0);
+    this.angulo = 0;
+
+    this.celdaActual = null;
+    this.tEnCelda = 0;
+
+    this.iniciaCaminos();
+
+    this.recurso_0 = 0;  // Recursos recolectados
+    this.casa = null; // Referencia a la casa del aldeano
+    this.objetivoRecurso = null; // Referencia al recurso actual
+    this.objetivo = null; // Objetivo actual
+    this.caminoObjetivos = [];   // lista de objetivos a seguir
+    this.ruta = []; // Ruta actual de casillas
+  }
+
+  actualiza() {
+    this.recorreCamino();
+    this.cinematica();
+    this.miraFronteras();
+    this.capturaObjetivo();
+    this.actualizaCaminado();
+
+    this.energia -= 0.1 + this.vel.mag() * 0.1;
+    this.colorVida = color(this.energia, 0, 0);
+
+    // Verificar si necesita buscar un nuevo recurso
+    if (this.objetivo == null && this.caminoObjetivos.length == 0) {
+      this.pensarQueHacer();
+    }
+  }
+
+  iniciaCaminos(){
+    this.caminoObjetivos = [];
+    this.objetivo = null;
+    this.ruta = [];
+  }
+
+  pensarQueHacer() {
+    if (this.casa && this.recurso_0 >= this.capacidadCarga) {
+      this.caminoaCasa();
+    } else {
+      this.buscaObjetivo();
+    }
+  }
+
+  actualizaCaminado() {
+    // Determinar en qué casilla está el aldeano
+    let i = floor(this.pos.x / tamCelda);
+    let j = floor(this.pos.y / tamCelda);
+
+    if (i >= 0 && i < cols && j >= 0 && j < filas) {
+      let clave = `(${i},${j})`;
+      let celda = grilla[clave];
+
+      if (this.celdaActual === celda) {
+        this.tEnCelda += 1;
+      } else {
+        this.celdaActual = celda;
+        this.tEnCelda = 0;
+      }
+
+      // Actualizar el atributo "caminado" de la casilla
+      if (celda.caminado < 1000) celda.caminado += 1 / (this.tEnCelda + 1);
+    }
+  }
+
+  estableceObjetivos(camino) {
+    for (let i = 0; i < camino.length; i++) {
+      this.caminoObjetivos.push(
+        new Objetivo(
+          0,
+          camino[i].centro().x,
+          camino[i].centro().y,
+          0,
+          0,
+        )
+      );
+    }
+  }
+
+  aplicaFuerza(fuerza) {
+    this.acel.add(fuerza);
+  }
+
+  cinematica() {
+    this.vel.add(this.acel);
+    this.vel.limit(this.maxVel);
+
+    this.pos.add(this.vel);
+
+    if (this.vel.mag() > 0.01) {
+      this.angulo = this.vel.heading();
+    }
+
+    this.acel.mult(0);
+  }
+
+  capturaObjetivo() {
+    if (
+      this.objetivo &&
+      this.pos.dist(this.objetivo.pos) < this.radioTomar
+    ) {
+      this.vel.mult(0.8); // Frena al llegar al objetivo, actualizado cada frame, se reduce en 20%
+
+      if (this.objetivo.tipo === "recurso") {
+        // Incrementar el recurso del aldeano
+        if (objetivos.get(this.objetivo.id)) {
+          this.recurso_0 += objetivos.get(this.objetivo.id).energia;
+
+          // Eliminar el recurso del mapa
+
+          objetivos.get(this.objetivo.id).tam = 0;
+          objetivos.get(this.objetivo.id).energia = 0;
+          objetivos.delete(this.objetivo.id);
+        } else {
+          this.pensarQueHacer();
+        }
+        // Verificar si debe construir una casa
+        if (this.recurso_0 >= COSTO_CONSTRUCCION_CASA && this.casa == null) {
+          if (!this.getCeldaActual().ocupada) {
+            if (this.getCeldaActual().caminado < MAX_CAMINADO) {
+              this.creaCasa();
+            }
+          } else if (this.getCeldaActual().casa.abandonada) {
+            this.casa = this.getCeldaActual().casa;
+            this.casa.reclamar(this);
+          } else {
+            this.recurso_0--;
+          }
+        }
+      } else if (this.objetivo.tipo === "casa") {
+        // Llegó a la casa, almacenar recursos
+        this.guardaRecursos();
+      }
+
+      this.objetivo = null;
+    }
+  }
+
+  getCeldaActual() {
+    let i = floor(this.pos.x / tamCelda);
+    let j = floor(this.pos.y / tamCelda);
+
+    return grilla[`(${i},${j})`];
+  }
+
+  miraFronteras() {
+    if (this.pos.x > width) this.vel.x = 0;
+    if (this.pos.x < 0) this.vel.x = 0;
+    if (this.pos.y > height) this.vel.y = 0;
+    if (this.pos.y < 0) this.vel.y = 0;
+  }
+
+  recorreCamino() {
+    if (this.objetivo) { // Si hay un objetivo actual entonces apuntar hacia él
+      let posDeseada = p5.Vector.sub(this.objetivo.pos, this.pos);
+      let distancia = posDeseada.mag();
+
+      if (distancia < this.distDesacelera) { // Desacelerar si está cerca del objetivo
+        let m = map(distancia, 0, this.distDesacelera, 0, this.maxVel);
+        posDeseada.setMag(m);
+      } else {
+        posDeseada.setMag(this.maxVel);
+      }
+
+      let fuerzaGirar = p5.Vector.sub(posDeseada, this.vel); // Fuerza para girar hacia el objetivo
+      fuerzaGirar.limit(this.maxFuerza);
+      this.aplicaFuerza(fuerzaGirar);
+    } else if (this.caminoObjetivos.length > 0) {
+      this.objetivo = this.caminoObjetivos.shift();
+      this.ruta.shift();
+      } else {
+      // Detenerse suavemente cuando no hay objetivos
+      let desacel = 0.8;
+      this.vel.mult(desacel);
+      if (this.vel.mag() < 0.1) {
+        this.vel.set(0, 0);
+      }
+      // Buscar un nuevo objetivo si no hay ninguno
+      if (this.recurso_0 > 0 && this.casa != null) {
+        this.caminoaCasa();
+      } else {
+        this.buscaObjetivo();
+      }
+    }
+  }
+
+  buscaObjetivo() {
+    let minDist = Infinity;
+    let objetivoCercano = null;
+
+    for (let objetivo of objetivos.values()) {
+      let d = this.pos.dist(objetivo.pos);
+      if (d < this.areaBusqueda && d < minDist) {
+        minDist = d;
+        objetivoCercano = objetivo;
+      }
+    }
+
+    if (objetivoCercano) {
+      // Calcular ruta hacia el recurso
+      let celdaInicio =
+        grilla[
+          `(${floor(this.pos.x / tamCelda)},${floor(
+            this.pos.y / tamCelda
+          )})`
+        ];
+      let celdaFin =
+        grilla[
+          `(${floor(objetivoCercano.pos.x / tamCelda)},${floor(
+            objetivoCercano.pos.y / tamCelda
+          )})`
+        ];
+
+      this.ruta = calculaCamino(
+        { i: celdaInicio.i, j: celdaInicio.j },
+        { i: celdaFin.i, j: celdaFin.j },
+        ui.slider["factorEnergia"].value(),
+        ui.slider["factorDistancia"].value(),
+        ui.slider["factorCamino"].value()
+      );
+
+      this.estableceObjetivos(this.ruta);
+
+      // Agregar el recurso como el último objetivo
+      this.caminoObjetivos.push(
+        new Objetivo(
+          objetivoCercano.id,
+          objetivoCercano.pos.x,
+          objetivoCercano.pos.y,
+          objetivoCercano.energia,
+          objetivoCercano.tam,
+          "recurso" // Especificar el tipo
+        )
+      );
+
+      // Guardar referencia al recurso
+      this.objetivoRecurso = objetivoCercano;
+
+      // Asegurarse de que el aldeano siga la ruta
+      this.objetivo = null;
+    }
+  }
+
+  caminoaCasa() {
+    let celdaInicio =
+      grilla[
+        `(${floor(this.pos.x / tamCelda)},${floor(
+          this.pos.y / tamCelda
+        )})`
+      ];
+    let celdaFin = this.casa.celdaEntrada; // Usar la casilla de entrada
+
+    if (celdaFin) {
+      this.ruta = calculaCamino(
+        { i: celdaInicio.i, j: celdaInicio.j },
+        { i: celdaFin.i, j: celdaFin.j },
+        ui.slider["factorEnergia"].value(),
+        ui.slider["factorDistancia"].value(),
+        ui.slider["factorCamino"].value()
+      );
+
+      this.estableceObjetivos(this.ruta);
+
+      // Agregar la entrada de la casa como el último objetivo
+      let posEntrada = celdaFin.centro();
+      this.caminoObjetivos.push(
+        new Objetivo(0, posEntrada.x, posEntrada.y, 0, 0, "casa")
+      );
+
+      this.objetivo = null;
+    }
+  }
+
+  enCasa() {
+    let posEntrada = this.casa.celdaEntrada.centro();
+    return (
+      dist(
+        this.pos.x,
+        this.pos.y,
+        posEntrada.x,
+        posEntrada.y
+      ) < this.radioTomar
+    );
+  }
+
+  creaCasa() {
+    let i = floor(this.pos.x / tamCelda);
+    let j = floor(this.pos.y / tamCelda);
+    this.casa = new Casa(i, j, this.clan);
+    casas.push(this.casa);
+  }
+
+  guardaRecursos() {
+    if (this.recurso_0 > 0) {
+      // console.log("storing resources")
+      this.casa.actualiza(this.recurso_0);
+      this.recurso_0 = 0;
+      this.objetivo = null;
+      this.buscaObjetivo(); // Buscar nuevos recursos
+    }
+  }
+
+  reproduce(pareja) {
+   // to do
+  }
+
+  morir() {
+    // Si el aldeano tiene una casa, desconectarse de ella
+    if (this.casa) {
+      this.casa.ocupantes = this.casa.ocupantes.filter(
+        (ocupante) => ocupante !== this
+      );
+      if (this.casa.ocupantes.length === 0) {
+        this.casa.abandonar();
+      }
+    }
+    // Eliminar al aldeano de la lista global de aldeanos
+    aldeanos = aldeanos.filter((a) => a !== this);
+  }
+
+  dibuja() {
+    fill(this.clan);
+    stroke(11, 0, 0, 200);
+    strokeWeight(0.3);
+    push();
+    translate(this.pos.x, this.pos.y);
+    rotate(this.angulo);
+    ellipse(0, 0, this.tam, this.tam);
+    fill(0, 0, 0, 0);
+    stroke(this.clan);
+    //ellipse(0, 0, this.senseArea, this.senseArea);
+    stroke(this.colorVida);
+    strokeWeight(1);
+    line(0, 0, 8, 0);
+    pop();
+     
+  }
+}
+
+function agregarAldeanos() {
+  for (let i = 0; i < 50 ; i++) {
+    let x = random(width);
+    let y = random(height);
+    let teamColor = color(random(255), random(255), random(255));
+    let aldeano = new Aldeano(x, y, teamColor, 3, 0.5);
+    aldeanos.push(aldeano);
+  }
+}
+
+function eliminarAldeanos() {
+  for (let aldeano of aldeanos) {
+    aldeano.morir(); // Llama al método morir de cada aldeano
+  }
+}
+
+
+// Contenido del archivo: objetivos.js
+class Objetivo {
+  constructor(id, x, y, energia, tamaño, tipo = "recorrido") {
+    this.id = id;
+    this.pos = createVector(x, y);
+    this.energia = energia;
+    this.tam = tamaño;
+    this.tipo = tipo; // 'recorrido', 'recurso', 'casa'
+  }
+
+  dibuja(buffer) {
+    buffer.fill(240, 120, 20);
+    buffer.stroke(0, 120, 0);
+    buffer.ellipse(this.pos.x, this.pos.y, this.tam * 2, this.tam * 2);
+  }
+}
+
+function dibujaObjetivos(buffer) {
+  buffer.clear();
+
+  for (let objetivo of objetivos.values()) {
+    objetivo.dibuja(buffer);
+  }
+}
+
+function generarRecursos() {
+  for (let i = 0; i < 10000; i++) {
+    let x = random(width);
+    let y = random(height);
+    let id = generateUUID();
+    let recurso = new Objetivo(id, x, y, 6, 5); //id,x,y Energía  , tamaño  
+    objetivos.set(id, recurso);
+  }
+
+  // Si los aldeanos no tienen un objetivo, buscar uno nuevo
+  for (let aldeano of aldeanos) {
+    if (!aldeano.target) {
+      aldeano.buscaObjetivo();
+    }
+  }
+}
+
+function eliminarRecursos() {
+  // Limpiar todos los recursos del mapa
+  objetivos.clear();
+
+  // Limpiar el buffer de recursos
+  buffers["recursos"].clear();
+
+  // Actualizar la última cantidad de objetivos
+  cantidadObjetivosTemp = 0;
+}
+
+function generarRecursosMonteCarlo(n) {
+  let probabilidad = floor(random(100));
+  for (let i = 0; i < n; i++) {
+    let x = random(width);
+    let y = random(height);
+    let id = generateUUID();
+    
+    let celda = grilla[`(${floor(x / tamCelda)},${floor(y / tamCelda)})`];
+    if (celda.valores.probabilidadRecurso > probabilidad) {
+      // Generar un recurso
+      
+      let recurso = new Objetivo(id, x, y, 20, 5); 
+      objetivos.set(id, recurso);
+    }
+  }
+}
+
+
+// Contenido del archivo: quadTree.js
+class Quadtree {
+    constructor(x1, y1, x2, y2, cap, depth = 1, parent = null) {
+      this.limites = { x1, y1, x2, y2 };
+  
+      this.objetos = [];
+  
+      this.dividido = false;
+      this.norDerecha = null;
+      this.norIzquierda = null;
+      this.surIzquierda = null;
+      this.surDerecha = null;
+  
+      this.capacidad = cap;
+      this.profundidad = depth;
+      this.parent = parent;
+  
+      this.muestraCasillaVacia = true;
+      this.muestraBordes = true;
+    }
+  
+    inserta(obj) {
+      if (!this.dentroDeLimites(obj)) return false;
+  
+      if (this.dividido) {
+        return (
+          this.norDerecha.inserta(obj) ||
+          this.norIzquierda.inserta(obj) ||
+          this.surDerecha.inserta(obj) ||
+          this.surIzquierda.inserta(obj)
+        );
+      }
+  
+      if (this.objetos.length < this.capacidad) {
+        this.objetos.push(obj);
+        obj.container = this;
+        return true;
+      } else {
+        this.subdividir();
+        this.inserta(obj);
+      }
+    }
+  
+    subdividir() {
+      let midX = (this.limites.x1 + this.limites.x2) / 2;
+      let midY = (this.limites.y1 + this.limites.y2) / 2;
+      this.norDerecha = new Quadtree(
+        midX,
+        this.limites.y1,
+        this.limites.x2,
+        midY,
+        this.capacidad + 1,
+        this.profundidad + 1,
+        this
+      );
+      this.norIzquierda = new Quadtree(
+        this.limites.x1,
+        this.limites.y1,
+        midX,
+        midY,
+        this.capacidad + 1,
+        this.profundidad + 1,
+        this
+      );
+      this.surIzquierda = new Quadtree(
+        this.limites.x1,
+        midY,
+        midX,
+        this.limites.y2,
+        this.capacidad + 1,
+        this.profundidad + 1,
+        this
+      );
+      this.surDerecha = new Quadtree(
+        midX,
+        midY,
+        this.limites.x2,
+        this.limites.y2,
+        this.capacidad + 1,
+        this.profundidad + 1,
+        this
+      );
+      this.dividido = true;
+      //mueve los objetos a las subdivisiones y los elimina del actual nodo
+      for (let obj of this.objetos) {
+        if (this.norDerecha.inserta(obj)) continue;
+        if (this.norIzquierda.inserta(obj)) continue;
+        if (this.surDerecha.inserta(obj)) continue;
+        if (this.surIzquierda.inserta(obj)) continue;
+      }
+      this.objetos = [];
+    }
+  
+    dentroDeLimites(obj) {
+      return (
+        obj.position.x >= this.limites.x1 &&
+        obj.position.x < this.limites.x2 &&
+        obj.position.y >= this.limites.y1 &&
+        obj.position.y < this.limites.y2
+      );
+    }
+  
+    query(range, found = []) {
+      if (!this.intersects(range)) {
+        return found;
+      }
+  
+      for (let object of this.objetos) {
+        if (this.isInRange(object, range)) {
+          found.push(object);
+        }
+      }
+  
+      if (this.dividido) {
+        this.norDerecha.query(range, found);
+        this.norIzquierda.query(range, found);
+        this.surDerecha.query(range, found);
+        this.surIzquierda.query(range, found);
+      }
+  
+      return found;
+    }
+  
+    intersects(range) {
+      return !(
+        range.x1 > this.limites.x2 ||
+        range.x2 < this.limites.x1 ||
+        range.y1 > this.limites.y2 ||
+        range.y2 < this.limites.y1
+      );
+    }
+  
+    isInRange(object, range) {
+      return (
+        object.position.x >= range.x1 &&
+        object.position.x < range.x2 &&
+        object.position.y >= range.y1 &&
+        object.position.y < range.y2
+      );
+    }
+  
+    forEach(callback) {
+      if (this.dividido) {
+        this.norDerecha.forEach(callback);
+        this.norIzquierda.forEach(callback);
+        this.surDerecha.forEach(callback);
+        this.surIzquierda.forEach(callback);
+      }
+      for (let obj of this.objetos) {
+        callback(obj);
+      }
+    }
+  
+    remove(obj) {
+      const index = this.objetos.indexOf(obj);
+      if (index > -1) {
+        this.objetos.splice(index, 1);
+        obj.quadtree = null;
+        return true;
+      }
+  
+      if (this.dividido) {
+        return (
+          this.norDerecha.remove(obj) ||
+          this.norIzquierda.remove(obj) ||
+          this.surDerecha.remove(obj) ||
+          this.surIzquierda.remove(obj)
+        );
+      }
+  
+      return false;
+    }
+  
+    update() {
+      if (this.dividido) {
+        this.norDerecha.update();
+        this.norIzquierda.update();
+        this.surDerecha.update();
+        this.surIzquierda.update();
+      }
+      for (let obj of this.objetos) {
+        if (!this.dentroDeLimites(obj)) {
+          this.remove(obj);
+          let root = this;
+          while (root.parent) {
+            root = root.parent;
+          }
+          root.inserta(obj);
+        }
+      }
+      this.eliminarSubdivisiones();
+    }
+  
+    eliminarSubdivisiones() {
+      if (this.dividido) {
+        this.norDerecha.eliminarSubdivisiones();
+        this.norIzquierda.eliminarSubdivisiones();
+        this.surDerecha.eliminarSubdivisiones();
+        this.surIzquierda.eliminarSubdivisiones();
+  
+        if (
+          !this.norDerecha.objetos.length &&
+          !this.norIzquierda.objetos.length &&
+          !this.surDerecha.objetos.length &&
+          !this.surIzquierda.objetos.length &&
+          !this.norDerecha.dividido &&
+          !this.norIzquierda.dividido &&
+          !this.surDerecha.dividido &&
+          !this.surIzquierda.dividido
+        ) {
+          this.norDerecha = null;
+          this.norIzquierda = null;
+          this.surDerecha = null;
+          this.surIzquierda = null;
+          this.dividido = false;
+        }
+      }
+    }
+    
+    length(){
+      if(this.dividido){
+      return norDerecha.length()+norIzquierda.length+surIzquierda.length()+surDerecha.length()
+      
+      }
+      
+      return this.objetos.length
+    }
+  
+    show() {
+      if (this.dividido) {
+        this.norDerecha.show();
+        this.norIzquierda.show();
+        this.surDerecha.show();
+        this.surIzquierda.show();
+      }
+  
+      if (
+        this.objetos.length == 0 &&
+        !this.dividido &&
+        this.muestraCasillaVacia
+      ) {
+        fill( 20+ 50 * (this.profundidad-1), 
+             20 + 50 * this.profundidad,
+             295-30*this.profundidad,
+             180-3*this.profundidad
+            );
+      } else {
+        noFill();
+      }
+      if (this.muestraBordes) {
+        stroke(200);
+        strokeWeight(1  / this.profundidad);
+        rect(
+          this.limites.x1,
+          this.limites.y1,
+          this.limites.x2 - this.limites.x1,
+          this.limites.y2 - this.limites.y1,
+          30 / this.profundidad
+        );
+      }
+    }
+  }
+  
+
+// Contenido del archivo: sketch.js
+let cnv;
+
+let MAX_ALTURA = 1000;
+let MAX_DIFF_ALTURA = 50;
+let MAX_CAMINADO = 7;
+let COSTO_EXPANSION_CASA = 5;
+let COSTO_CONSTRUCCION_CASA = 20;
+let grilla = {};
+let cols, filas;
+let tamCelda = 10;
+//zoom controls
+const controls = {
+  view: { x: 0, y: 0, zoom: 1 },
+  viewPos: { prevX: null, prevY: null, isDragging: false },
+};
+
+let caminoDummy = [];
+let posInicio = null;
+let posFinal = null;
+
+let aldeanos = []; // Lista global de aldeanos
+let objetivos = new Map();
+let cantidadObjetivosTemp;
+let casas = [];
+
+let pausa = false;
+let ui;
+
+let buffers = {}; // Buffer para dibujar el grilla
+
+function setup() {
+  cnv = createCanvas(1200, 800);
+  //zooom zoom
+  // Attach the mouseWheel event listener to the canvas element
+  cnv.elt.addEventListener("wheel", (e) => {
+    Controls.zoom(controls).worldZoom(e);
+  });
+  cnv.elt.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  cols = width / tamCelda;
+  filas = height / tamCelda;
+
+  // Crear el buffer
+  buffers["altura"] = createGraphics(width, height);
+  buffers["caminado"] = createGraphics(width, height);
+  buffers["recursos"] = createGraphics(width, height);
+  buffers["area_recursos"] = createGraphics(width, height);
+  buffers["casas"] = createGraphics(width, height); // TO DO
+  // Crear interfaz de usuario
+  ui = new UI();
+  // Crear la matriz de casillas organizada como un diccionario
+  iniciaGrilla(buffers);
+
+  // Log para verificar la estructura de datos
+  //console.log(grilla);
+}
+
+function draw() {
+  translate(controls.view.x, controls.view.y);
+  scale(controls.view.zoom);
+  if (!pausa) {
+    background(220);
+
+    // Mostrar el buffer de altura del terreno si no estan activos los otros
+
+    image(buffers["altura"], 0, 0);
+
+    // Mostrar el buffer de 'caminado' si está activo
+    if (ui.mostrarCaminado) {
+      image(buffers["caminado"], 0, 0);
+    }
+
+    // Mostrar el buffer de 'áreas de recursos' si está activo
+    if (ui.mostrarAreasRecursos) {
+      image(buffers["area_recursos"], 0, 0);
+    }
+
+    //
+    //dibujaCamino(caminoDummy);
+
+    if (ui.mostrarCasas) {
+      for (let casa of casas) {
+        casa.handleAbandono();
+        casa.dibuja();
+      }
+    }
+    if (ui.mostrarRecursos) {
+      image(buffers["recursos"], 0, 0);
+    }
+    // Actualizar y mostrar aldeanos
+
+    if (ui.mostrarRutasAldeanos) {
+      for (let aldeano of aldeanos) {
+        dibujaCamino(aldeano.ruta);
+      }
+    }
+
+    for (let aldeano of aldeanos) {
+      aldeano.actualiza();
+      aldeano.dibuja();
+    }
+
+    if (ui.generacionRecursos && objetivos.size < 600) {
+      generarRecursosMonteCarlo(31);
+    }
+
+    // Actualizar recursos si es necesario
+    if (ui.mostrarRecursos) {
+      redibujaObjetivos(frameCount);
+    }
+  }
+}
+
+function redibujaObjetivos(x) {
+  if (objetivos.size != cantidadObjetivosTemp && frameCount % 30 == 0) {
+    cantidadObjetivosTemp = objetivos.size;
+    // Dibujar recursos
+    dibujaObjetivos(buffers.recursos);
+  }
+}
+
+function actualizaCamino() {
+  if (posInicio && posFinal) {
+    // console.log("updating path");
+    caminoDummy = calculaCamino(
+      posInicio,
+      posFinal,
+      ui.slider["factorEnergia"].value(),
+      ui.slider["factorDistancia"].value(),
+      ui.slider["factorCamino"].value()
+    );
+  }
+}
+
+function mousePressed(e) {
+  if (mouseButton === LEFT) {
+    // Verifica si es clic izquierdo
+    // Convertir las coordenadas de la pantalla a las coordenadas del mundo
+    let worldX = (mouseX - controls.view.x) / controls.view.zoom;
+    let worldY = (mouseY - controls.view.y) / controls.view.zoom;
+
+    // Calcular los índices de la grilla basados en las coordenadas del mundo
+    let index_i = floor(worldX / tamCelda);
+    let index_j = floor(worldY / tamCelda);
+
+    if (index_i >= 0 && index_i < cols && index_j >= 0 && index_j < filas) {
+      if (ui.herramienta == 0) {
+        // Funcionalidad de caminos
+
+        if (aldeanos.length == 0) {
+          let teamColor = color(random(255), random(255), random(255));
+          let aldeano = new Aldeano(worldX, worldY, teamColor, 3, 0.15);
+          aldeanos.push(aldeano);
+
+          posInicio = { i: index_i, j: index_j };
+        } else {
+          if (!posInicio) {
+            let celdaAct =
+              grilla[
+                `(${floor(aldeanos[0].pos.x / tamCelda)},${floor(
+                  aldeanos[0].pos.y / tamCelda
+                )})`
+              ];
+            posInicio = { i: celdaAct.i, j: celdaAct.j };
+          }
+          posFinal = { i: index_i, j: index_j };
+          caminoDummy = calculaCamino(
+            posInicio,
+            posFinal,
+            ui.slider["factorEnergia"].value(),
+            ui.slider["factorDistancia"].value(),
+            ui.slider["factorCamino"].value()
+          );
+          posInicio = posFinal;
+
+          let celdaDestino = { i: index_i, j: index_j };
+          for (let aldeano of aldeanos) {
+            aldeano.iniciaCaminos();
+            let celdaIni =
+              grilla[
+                `(${floor(aldeano.pos.x / tamCelda)},${floor(
+                  aldeano.pos.y / tamCelda
+                )})`
+              ];
+
+            aldeano.ruta = calculaCamino(
+              { i: celdaIni.i, j: celdaIni.j },
+              celdaDestino,
+              ui.slider["factorEnergia"].value(),
+              ui.slider["factorDistancia"].value(),
+              ui.slider["factorCamino"].value()
+            );
+            aldeano.estableceObjetivos(aldeano.ruta);
+          }
+        }
+      } else if (ui.herramienta == 1) {
+        // Modo de recursos
+
+        let id = generateUUID();
+        let recurso = new Objetivo(id, worldX, worldY, 5, 5); // Energía 1, tamaño 5
+        objetivos.set(id, recurso);
+
+        for (let aldeano of aldeanos) {
+          if (!aldeano.objetivo) {
+            aldeano.iniciaCaminos();
+            aldeano.buscaObjetivo();
+          }
+        }
+      } else if (ui.herramienta == 2) {
+        // Modo de agregar Aldeano
+        let colorClan = color(random(255), random(255), random(255));
+        let aldeano = new Aldeano(worldX, worldY, colorClan, 3, 0.15);
+        aldeanos.push(aldeano);
+
+        // Iniciar búsqueda de objetivo inmediatamente
+        aldeano.buscaObjetivo();
+      }
+    }
+  } else if (mouseButton === CENTER) {
+    {
+      console.log("middle mouse button pressed");
+      Controls.move(controls).mousePressed(e);
+    }
+  }
+}
+
+function mouseDragged(e) {
+  if (mouseButton === CENTER) {
+    // Check if the middle mouse button is used for dragging
+    Controls.move(controls).mouseDragged(e);
+  }
+}
+
+function mouseReleased(e) {
+  if (mouseButton === CENTER) {
+    // Check if the middle mouse button is released
+    Controls.move(controls).mouseReleased(e);
+  }
+}
+
+
+// Contenido del archivo: ui.js
+class UI {
+  constructor() {
+    //UI
+    this.herramienta = 0;
+    this.mostrarCaminado = false;
+    this.mostrarAreasRecursos = true;
+    this.mostrarRecursos = true;
+    this.mostrarRutasAldeanos = false;
+    this.generacionRecursos=false;
+
+    this.mostrarCasas = true; // TO DO
+    this.slider = {};
+
+    this.nuevoCampoButton = createButton("Nuevo campo");
+    this.herramientaButton = createButton("Camino");
+    this.caminadoButton = createButton("Mostrar Caminos");
+    this.areaRecursosButton = createButton("Mostrar Areas Recursos");
+    this.mostrarRutasButton = createButton("Mostrar Rutas Aldeanos");
+
+    this.agregarAldeanosButton = createButton("Agregar 5 aldeanos");
+    this.eliminarAldeanosButton = createButton("Eliminar Aldeanos"); // Nuevo botón
+
+    this.generarRecursosButton = createButton("Agregar 20 recursos");
+    this.activaGeneracionRecursosButton = createButton("Generación de recursos");
+    this.eliminarRecursosButton = createButton("Eliminar Recursos");
+    this.mostrarRecursosButton = createButton("Muestra/Oculta recusos");
+    this.mostrarCasasButton = createButton("Mostrar Casas");
+    this.resetVistaButton = createButton("Reiniciar Vista");
+
+    this.generateUI();
+  }
+
+  generateUI() {
+    this.slider["factorEnergia"] = createSlider(0, 0.1, 0.02, 0.01);
+    this.slider["factorEnergia"].position(10, height + 10);
+    this.slider["factorEnergia"].style("width", "40px");
+    this.slider["factorEnergia"].mouseReleased(actualizaCamino);
+
+    this.slider["factorDistancia"] = createSlider(0, 1, 0.9, 0.01);
+    this.slider["factorDistancia"].position(50, height + 10);
+    this.slider["factorDistancia"].style("width", "40px");
+    this.slider["factorDistancia"].mouseReleased(actualizaCamino);
+
+    this.slider["factorCamino"] = createSlider(0, 1, 0.01, 0.01);
+    this.slider["factorCamino"].position(90, height + 10);
+    this.slider["factorCamino"].style("width", "40px");
+    this.slider["factorCamino"].mouseReleased(actualizaCamino);
+
+    // Crear el botón
+
+    this.nuevoCampoButton.position(0, height + 30);
+    this.nuevoCampoButton.mousePressed(() => {
+      iniciaGrilla(buffers); // Redibujar el grilla en el buffer
+      if (posInicio && posFin) {
+        //console.log("updating path");
+        path = calculaCamino(
+          posInicio,
+          posFin,
+          this.slider["factorEnergia"].value(),
+          this.slider["factorDistancia"].value(),
+          this.slider["factorCamino"].value()
+        );
+      }
+    });
+
+    this.resetVistaButton.position(0, height + 70); // Ajusta la posición según tu diseño
+    this.resetVistaButton.mousePressed(() => {
+      Controls.resetView();
+    });
+
+    
+    this.generarRecursosButton.position(150 , height + 10);
+    this.generarRecursosButton.mousePressed(generarRecursos);
+
+    this.activaGeneracionRecursosButton.position(320, height + 40);
+    this.activaGeneracionRecursosButton.mousePressed(() => {
+      this.generacionRecursos = !this.generacionRecursos;
+      let label = this.generacionRecursos ? "Generación de recursos ON" : "Generación de recursos OFF";
+      this.activaGeneracionRecursosButton.html(label);
+    });
+
+
+    this.mostrarRecursosButton.position(150, height + 40); // Justo debajo del botón "Agregar 20 recursos"
+    this.mostrarRecursosButton.mousePressed(() => {
+      this.mostrarRecursos = !this.mostrarRecursos;
+    });
+    
+    this.eliminarRecursosButton.position(320, height + 10); // Justo debajo del botón "Agregar 20 recursos"
+    this.eliminarRecursosButton.mousePressed(eliminarRecursos);
+    
+    
+
+
+    this.agregarAldeanosButton.position(520, height + 10);
+    this.agregarAldeanosButton.mousePressed(agregarAldeanos);
+    
+    this.eliminarAldeanosButton.position(520, height + 40);
+    this.eliminarAldeanosButton.mousePressed(() => {
+      eliminarAldeanos(); 
+    });
+   
+    
+    this.mostrarCasasButton.position(720, height + 40);
+    this.mostrarCasasButton.mousePressed(() => {
+      this.mostrarCasas = !this.mostrarCasas;
+    });
+
+    
+    
+    // Botón para mostrar/ocultar "caminado"
+    this.caminadoButton.position(width - 300, height + 10);
+    this.caminadoButton.mousePressed(() => {
+      this.mostrarCaminado = !this.mostrarCaminado; // Cambiar el estado de la visualización
+      this.mostrarAreasRecursos = false; // Ocultar las áreas de recursos
+      let label = this.mostrarCaminado ? "Ocultar caminos" : "Mostrar caminos";
+      this.caminadoButton.html(label);
+      dibujaCaminados(buffers.caminado); // Redibujar el grilla con la nueva visualización
+    });
+    
+    this.areaRecursosButton.position(width - 300, height + 40);
+    this.areaRecursosButton.mousePressed(() => {
+      this.mostrarAreasRecursos = !this.mostrarAreasRecursos;
+      this.mostrarCaminado = false; // Ocultar los caminos
+      let label = this.mostrarAreasRecursos ? "Ocultar areas recursos" : "Mostrar areas recursos";
+      this.areaRecursosButton.html(label);
+      //dibujaAreaRecursos(buffers.area_recursos); // Redibujar el grilla con la nueva visualización
+    });
+    
+    this.mostrarRutasButton.position(width - 300, height + 70);
+    this.mostrarRutasButton.mousePressed(() => {
+      this.mostrarRutasAldeanos = !this.mostrarRutasAldeanos;
+      let label = this.mostrarRutasAldeanos ? "Ocultar rutas aldeanos" : "Mostrar rutas aldeanos";
+      this.mostrarRutasButton.html(label);
+    });
+
+
+
+    this.herramientaButton.position(width - 120, height + 10);
+    this.herramientaButton.mousePressed(() => {
+      this.herramienta = (this.herramienta + 1) % 3; // Cambiar a 3 modos
+      let nom =
+        this.herramienta == 0
+          ? "Caminos"
+          : this.herramienta == 1
+          ? "Recursos"
+          : "Aldeano";
+      this.herramientaButton.html(nom);
+    });
+
+    
+  }
+}
+
+
+// Contenido del archivo: utils.js
+function generateUUID() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    let r = (Math.random() * 16) | 0,
+      v = c == "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+// Contenido del archivo: zoom.js
+class Controls {
+    static move(controls) {
+      function mousePressed(e) {
+         // Verifica si es clic derecho
+          controls.viewPos.isDragging = true;
+          controls.viewPos.prevX = e.clientX;
+          controls.viewPos.prevY = e.clientY;
+        
+      }
+  
+      function mouseDragged(e) {
+        const { prevX, prevY, isDragging } = controls.viewPos;
+        if (!isDragging) return;
+  
+        const pos = { x: e.clientX, y: e.clientY };
+        const dx = pos.x - prevX;
+        const dy = pos.y - prevY;
+  
+        if (prevX !== null && prevY !== null) {
+          controls.view.x += dx;
+          controls.view.y += dy;
+          controls.viewPos.prevX = pos.x;
+          controls.viewPos.prevY = pos.y;
+        }
+      }
+  
+      function mouseReleased(e) {
+         // Verifica si es clic derecho
+          controls.viewPos.isDragging = false;
+          controls.viewPos.prevX = null;
+          controls.viewPos.prevY = null;
+        
+      }
+  
+      return {
+        mousePressed,
+        mouseDragged,
+        mouseReleased
+      }
+    }
+  
+    static zoom(controls) {
+        function worldZoom(e) {
+      
+            const { x, y, deltaY } = e;
+            const direction = deltaY > 0 ? -1 : 1;
+            const factor = 0.2;
+            const zoom = 1 * direction * factor;
+            console.log(deltaY)
+            const wx = (x - controls.view.x) / (width * controls.view.zoom);
+            const wy = (y - controls.view.y) / (height * controls.view.zoom);
+      
+            controls.view.x -= wx * width * zoom;
+            controls.view.y -= wy * height * zoom;
+            controls.view.zoom += zoom;
+          }
+  
+      return { worldZoom }
+    }
+  
+    static resetView(){
+      // Restablecer las propiedades de la vista a sus valores predeterminados
+      controls.view.x = 0;
+      controls.view.y = 0;
+      controls.view.zoom = 1;
+    }
+  }
+
