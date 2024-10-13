@@ -15,7 +15,7 @@ let sliderDv;
 
 function preload() {
   soundFormats("mp3", "ogg");
-  jointSound = loadSound("clack");
+  jointSound = loadSound("../common/music/join2");
 }
 
 function setup() {
