@@ -17,7 +17,7 @@ var points = [
 
 
 function preload() {
-  song = loadSound("canc.ogg");
+  song = loadSound("../common/music/canc.ogg");
 }
 
 let vertices = [];

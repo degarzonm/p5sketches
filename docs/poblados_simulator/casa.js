@@ -12,7 +12,10 @@ class Casa {
     this.abandonada = false; // Nueva propiedad para saber si la casa está abandonada
     this.tAbandonada = 0; // Contador de frames desde que fue abandonada
     this.ocupantes = []; // Lista de aldeanos ocupantes
-
+    this.buffer = createGraphics(tamCelda * cols, tamCelda * filas); // Tamaño máximo basado en el grid
+    this.necesitaRedibujar = true; // Indicador para redibujar
+    this.numCeldas = 0; // Almacena el número de celdas previamente para detectar cambios
+  
     this.creaCeldas();
   }
 
@@ -154,6 +157,7 @@ class Casa {
       color(255, 255, 255, 5),
       0.5
     );
+    this.necesitaRedibujar = true;
   }
 
   eliminaCelda() {
@@ -181,40 +185,44 @@ class Casa {
       color(255, 255, 255, 5),
       0.1
     );
+    this.necesitaRedibujar = true;
+  }
+ // Método para redibujar el buffer si es necesario
+ redibujaBuffer() {
+  this.buffer.clear();
+  this.buffer.push();
+  this.buffer.translate(this.i * tamCelda, this.j * tamCelda);
+
+  for (let pos of this.celdas) {
+    let dx = (pos.i - this.i) * tamCelda;
+    let dy = (pos.j - this.j) * tamCelda;
+    let esEntrada = pos.i === this.celdaEntrada.i && pos.j === this.celdaEntrada.j;
+
+    if (esEntrada) {
+      this.buffer.fill(this.colorEntrada);
+      this.buffer.stroke(0);
+      this.buffer.strokeWeight(tamCelda * 0.25);
+    } else {
+      this.buffer.noStroke();
+      this.buffer.fill(this.colorBase);
+    }
+    this.buffer.rect(dx, dy, tamCelda * 1.1, tamCelda * 1.1);
   }
 
-  dibuja() {
-    push();
-
-    // Calcular el centro de la casa
-    let centroX = (this.i + 0.5) * tamCelda;
-    let centroY = (this.j + 0.5) * tamCelda;
-
-    translate(centroX, centroY);
-    //rotate(this.rotation);
-
-    // Dibujar cada casilla
-    for (let pos of this.celdas) {
-      let dx = (pos.i - this.i - 0.5) * tamCelda;
-      let dy = (pos.j - this.j - 0.5) * tamCelda;
-
-      // Determinar si esta casilla es la entrada
-      if (this.celdaEntrada) {
-        let esEntrada =
-          pos.i === this.celdaEntrada.i && pos.j === this.celdaEntrada.j;
-
-        if (esEntrada) {
-          fill(this.colorEntrada);
-          stroke(0);
-          strokeWeight(tamCelda * 0.25);
-        } else {
-          noStroke();
-          fill(this.colorBase);
-        }
-      }
-      rect(dx, dy, tamCelda * 1.1, tamCelda * 1.1);
+  this.buffer.pop();
+}
+   // Método que dibuja la casa, utilizando el buffer si no hay cambios
+   dibuja() {
+    if (this.celdas.length !== this.numCeldas) {
+      this.necesitaRedibujar = true;
+      this.numCeldas = this.celdas.length;
     }
 
-    pop();
+    if (this.necesitaRedibujar) {
+      this.redibujaBuffer(); // Redibujar el buffer si es necesario
+      this.necesitaRedibujar = false;
+    }
+
+    image(this.buffer, 0, 0); // Dibujar el buffer
   }
 }
