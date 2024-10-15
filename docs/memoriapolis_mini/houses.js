@@ -6,7 +6,7 @@ class House {
   }
 
   // Método para dibujar la casa
-  display(buffer = null) {
+  display(buffer, offsetX = 0, offsetY = 0) {
     if (!buffer) {
       buffer = window; // Si no se proporciona un buffer, usar el canvas principal
     }
@@ -15,7 +15,7 @@ class House {
     buffer.strokeWeight(1);
     buffer.beginShape();
     for (let point of this.points) {
-      buffer.vertex(point.X, point.Y);
+      buffer.vertex(point.X - offsetX, point.Y - offsetY);
     }
     buffer.endShape(CLOSE);
   }

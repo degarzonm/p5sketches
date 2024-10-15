@@ -32,8 +32,19 @@ class Polygon {
     this.fundacion = frameCount;
 
     // Crear un buffer gráfico para el polígono
-    this.buffer = createGraphics(width, height);
+    //this.buffer = createGraphics(width, height);
+// Calcular el bounding box del polígono
+this.minX = Math.min(...this.points.map(p => p.X));
+this.maxX = Math.max(...this.points.map(p => p.X));
+this.minY = Math.min(...this.points.map(p => p.Y));
+this.maxY = Math.max(...this.points.map(p => p.Y));
 
+// Calcular el tamaño del buffer
+let bufferWidth = this.maxX - this.minX;
+let bufferHeight = this.maxY - this.minY;
+
+// Crear el buffer con el tamaño adecuado
+this.buffer = createGraphics(bufferWidth, bufferHeight);
     // Bandera para indicar si la población cambió
     this.populationChanged = true;
     this.updateBuffer()
@@ -49,7 +60,7 @@ class Polygon {
     this.buffer.strokeWeight(4);
     this.buffer.beginShape();
     for (let point of this.points) {
-      this.buffer.vertex(point.X, point.Y);
+      this.buffer.vertex(point.X - this.minX, point.Y - this.minY);
     }
     this.buffer.endShape(CLOSE);
 
@@ -57,12 +68,12 @@ class Polygon {
     this.buffer.stroke(100);
     this.buffer.strokeWeight(3);
     for (let road of this.roads) {
-      this.buffer.line(road.start.X, road.start.Y, road.end.X, road.end.Y);
+      this.buffer.line(road.start.X- this.minX, road.start.Y- this.minY, road.end.X- this.minX, road.end.Y- this.minY);
     }
 
     // Dibujar las casas
     for (let house of this.houses) {
-      house.display(this.buffer);
+      house.display(this.buffer, this.minX, this.minY);
     }
   }
 
@@ -75,7 +86,7 @@ class Polygon {
     }
 
     // Mostrar el buffer
-    image(this.buffer, 0, 0);
+    image(this.buffer, this.minX, this.minY);
 
     // Si el polígono está seleccionado, dibujar el borde especial
     if (this.selected) {
@@ -112,12 +123,12 @@ class Polygon {
 
   // Método para generar los caminos internos (líneas paralelas a un segmento base)
   generateRoads() {
-    // Seleccionar un segmento base (el primer lado del polígono)
+    // Seleccionar un segmento base aleatorio
     if (this.points.length < 2) return;
-
+    let index = floor(random(this.points.length));
     let baseSegment = {
-      start: this.points[0],
-      end: this.points[1],
+      start: this.points[index],
+      end: this.points[(index + 1) % this.points.length],
     };
 
     // Calcular vector dirección del segmento base
@@ -155,12 +166,12 @@ class Polygon {
     for (let i = -numLines; i <= numLines; i++) {
       let offset = i * this.spacing;
       let lineStart = {
-        X: centerX + normal.X * offset - dir.X * 1000,
-        Y: centerY + normal.Y * offset - dir.Y * 1000,
+        X: centerX + normal.X * offset - dir.X * 3000,
+        Y: centerY + normal.Y * offset - dir.Y * 3000,
       };
       let lineEnd = {
-        X: centerX + normal.X * offset + dir.X * 1000,
-        Y: centerY + normal.Y * offset + dir.Y * 1000,
+        X: centerX + normal.X * offset + dir.X * 3000,
+        Y: centerY + normal.Y * offset + dir.Y * 3000,
       };
 
       // Intersecar la línea con el polígono
