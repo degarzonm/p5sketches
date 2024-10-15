@@ -171,6 +171,7 @@ function closePolygon() {
 // Función para dibujar el polígono en curso con el círculo en el primer vértice
 function drawCurrentPolygon(points, colorFill) {
   fill(colorFill);
+  strokeWeight(2)
   stroke(0);
   beginShape();
   for (let point of points) {

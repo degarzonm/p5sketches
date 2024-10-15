@@ -6,7 +6,7 @@ let filter;
 let spectrum=[];
 let spectrum_history=[];
 let spectrum_average=[];
-let maxSpectrumHistory=5;
+let maxSpectrumHistory=50;
 
 
 function preload() {
@@ -53,7 +53,7 @@ function setup() {
 }
 
 function draw() {
-  background(30,30,30,10);
+  background(30,30,30);
 
   spectrum = fft.analyze();
   //añade el espectro actual al historial, se guardaran los ultimos 100 espectros y se calcula el promedio para cada frecuencia
@@ -132,7 +132,7 @@ function drawAccumulatedSpectrum(spectrum, spectrum_average){
 
     //pequeño reloj girando a la velocidad dada por el promedio del espectro
     fill(spectrum_average[i], spectrum_average[i], 150);
-    let vel_angular = map(spectrum_average[i], 0, 300, 0, 1);
+    let vel_angular = map(spectrum_average[i], 0, 300, -1, 1);
 
     let Θ = vel_angular*frameCount/(10)//+i
  
