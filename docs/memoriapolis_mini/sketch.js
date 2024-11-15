@@ -30,30 +30,25 @@ let cellSize = 15; // Tamaño de cada celda
 let offsetX = 0; // Desplazamiento en X para arrastrar
 let offsetY = 0; // Desplazamiento en Y para arrastrar
 let noiseScale = 0.01;
+let NOISE_SEED = 45; // Semilla para el ruido Perlin
 let dragging = false;
 let minH = -2000;
-let maxH = 3000;
+let maxH = 4000;
 let previousMouse;
 
 
 function setup() {
    createCanvas(1200, 800);
-  // Activar el loop de dibujo
   loop();
-  
-  // Prevenir el menú contextual en clic derecho
   canvas.addEventListener('contextmenu', function(event) {
     event.preventDefault();
   });
 
-  // Configura una semilla para el ruido Perlin para consistencia
-  noiseSeed(66); // Puedes cambiar este valor para obtener diferentes terrenos
+  noiseSeed(NOISE_SEED); 
 
-  // Inicializar la grilla
   grid = new Grid(cellSize);
-  
-  // Generar las celdas visibles inicialmente
   grid.generateCellsInView(offsetX, offsetY, width, height);
+
   ui = new UI();
 }
 
@@ -96,20 +91,9 @@ function draw() {
     noStroke();
     textSize(16); 
     let infoX = 10 - offsetX;
-    let infoY = height - 70 - offsetY;
+    let infoY = height - 110 - offsetY;
     text("Detalles del objeto seleccionado:", infoX, infoY);
-    if (selectedPolygon.type === 'Polygon') {
-      text("Tipo: Localidad", infoX, infoY + 20);
-      text("Nombre: " + selectedPolygon.name, infoX, infoY + 40);
-      text("Población: " + selectedPolygon.population, infoX, infoY + 60);
-      text("Área: " + selectedPolygon.getArea().toFixed(2), infoX, infoY + 80);
-    } else if (selectedPolygon.type === 'Road') {
-      text("Tipo: Camino", infoX, infoY + 20);
-    } else if (selectedPolygon.type === 'Forest') {
-      text("Tipo: Bosque", infoX, infoY + 20);
-      text("Madera: " + selectedPolygon.wood, infoX, infoY + 40);
-      text("Número de árboles: " + selectedPolygon.trees.length, infoX, infoY + 60);
-    }
+    selectedPolygon.displayInfo(infoX, infoY);
   }
 
   // Generar casas cada X frames
@@ -261,7 +245,7 @@ function closePolygon() {
     currentColor = color(random(255), random(255), random(255), 100);
     let newPolygon = new Polygon(currentPoints, currentColor);
 
-    if (polygons.length > 0 || roads.length > 0 || forests.length > 0) {
+    if (polygons.length > 0 || roads.length > 0) {
       let clipper = new ClipperLib.Clipper();
 
       let subj = [newPolygon.points];
@@ -272,9 +256,7 @@ function closePolygon() {
       for (let road of roads) {
         existingPolygons.push(road.points);
       }
-      for (let forest of forests) {
-        existingPolygons.push(forest.points);
-      }
+      // No incluir bosques en el recorte
 
       clipper.AddPaths(existingPolygons, ClipperLib.PolyType.ptClip, true);
       clipper.AddPaths(subj, ClipperLib.PolyType.ptSubject, true);
@@ -294,6 +276,8 @@ function closePolygon() {
           let newPoly = new Polygon(path, polyColor);
           polygons.push(newPoly);
         }
+      } else {
+        polygons.push(newPolygon);
       }
     } else {
       polygons.push(newPolygon);
@@ -313,7 +297,7 @@ function closePolygon() {
       let roadPath = offsetPaths[0];
       let newRoad = new Road(roadPath);
 
-      if (polygons.length > 0 || roads.length > 0 || forests.length > 0) {
+      if (polygons.length > 0 || roads.length > 0) {
         let clipper = new ClipperLib.Clipper();
 
         let subj = [newRoad.points];
@@ -324,9 +308,7 @@ function closePolygon() {
         for (let road of roads) {
           existingPolygons.push(road.points);
         }
-        for (let forest of forests) {
-          existingPolygons.push(forest.points);
-        }
+        // No incluir bosques en el recorte
 
         clipper.AddPaths(existingPolygons, ClipperLib.PolyType.ptClip, true);
         clipper.AddPaths(subj, ClipperLib.PolyType.ptSubject, true);
@@ -345,6 +327,8 @@ function closePolygon() {
             let newRoad = new Road(path);
             roads.push(newRoad);
           }
+        } else {
+          roads.push(newRoad);
         }
       } else {
         roads.push(newRoad);

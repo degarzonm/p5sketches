@@ -1,4 +1,6 @@
 .DS_Store
+node_modules
+.vscode
 applet
 application.linux-arm64
 application.linux-armv6hf

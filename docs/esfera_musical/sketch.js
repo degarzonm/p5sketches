@@ -64,9 +64,6 @@ function setup() {
   delta.position(width, 50);
   delta.style("width", "100px");
 
-  paletaColor = createColorPicker("#DD1C1C87");
-  paletaColor.position(0, height + 5);
-  paletaColor.input(setShade1);
 
   vertices = esferaFibonacci(0, 0, 0, radio.value(), npuntos.value());
 }
@@ -83,7 +80,6 @@ function draw() {
 
   background(50);
   stroke(0);
-  box(80);
   rotateX(0.0008 * frameCount);
   rotateY(0.00085 * sin(frameCount / 40));
 

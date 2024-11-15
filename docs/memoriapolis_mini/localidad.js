@@ -1,18 +1,37 @@
 // Polygon.js
 
 // Array of syllables for name generation
-const syllables = ['pa', 'ta', 'ma', 'ca', 'ra', 'la', 'sa', 'na', 'ki', 'mi', 'li', 'si', 'ni', 'to', 'mo', 'lo', 'so', 'no'];
-const suffixes = ['quirá', 'tiva', 'catá'];
+const syllables = [
+  "pa",
+  "ta",
+  "ma",
+  "ca",
+  "ra",
+  "la",
+  "sa",
+  "na",
+  "ki",
+  "mi",
+  "li",
+  "si",
+  "ni",
+  "to",
+  "mo",
+  "lo",
+  "so",
+  "no",
+];
+const suffixes = ["quirá", "tiva", "catá"];
 
 // Clase Polygon que representa una localidad en el simulador
 class Polygon {
   constructor(points, color) {
     this.points = points; // Puntos del polígono
     this.color = color; // Color del polígono
-
+    this.type = "Localidad"; // Tipo de polígono
     // Generar nombre de la localidad
     let numSyllables = floor(random(1, 4)); // Entre 1 y 4 sílabas
-    this.name = '';
+    this.name = "";
     for (let i = 0; i < numSyllables; i++) {
       this.name += random(syllables);
     }
@@ -22,7 +41,7 @@ class Polygon {
     this.densidad = 0.8;
     this.roads = []; // Array de caminos (segmentos de líneas)
     this.houses = []; // Array de casas
-    this.lenPatio=0.5;
+    this.lenPatio = 0.5;
     this.spacing = random(30, 60); // Espaciamiento entre caminos paralelos
     this.selected = false; // Estado de selección
     this.ensureClockwise(); // Asegurar orientación clockwise
@@ -33,21 +52,21 @@ class Polygon {
 
     // Crear un buffer gráfico para el polígono
     //this.buffer = createGraphics(width, height);
-// Calcular el bounding box del polígono
-this.minX = Math.min(...this.points.map(p => p.X));
-this.maxX = Math.max(...this.points.map(p => p.X));
-this.minY = Math.min(...this.points.map(p => p.Y));
-this.maxY = Math.max(...this.points.map(p => p.Y));
+    // Calcular el bounding box del polígono
+    this.minX = Math.min(...this.points.map((p) => p.X));
+    this.maxX = Math.max(...this.points.map((p) => p.X));
+    this.minY = Math.min(...this.points.map((p) => p.Y));
+    this.maxY = Math.max(...this.points.map((p) => p.Y));
 
-// Calcular el tamaño del buffer
-let bufferWidth = this.maxX - this.minX;
-let bufferHeight = this.maxY - this.minY;
+    // Calcular el tamaño del buffer
+    let bufferWidth = this.maxX - this.minX;
+    let bufferHeight = this.maxY - this.minY;
 
-// Crear el buffer con el tamaño adecuado
-this.buffer = createGraphics(bufferWidth, bufferHeight);
+    // Crear el buffer con el tamaño adecuado
+    this.buffer = createGraphics(bufferWidth, bufferHeight);
     // Bandera para indicar si la población cambió
     this.populationChanged = true;
-    this.updateBuffer()
+    this.updateBuffer();
   }
 
   // Método para actualizar el buffer gráfico
@@ -68,7 +87,12 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
     this.buffer.stroke(100);
     this.buffer.strokeWeight(3);
     for (let road of this.roads) {
-      this.buffer.line(road.start.X- this.minX, road.start.Y- this.minY, road.end.X- this.minX, road.end.Y- this.minY);
+      this.buffer.line(
+        road.start.X - this.minX,
+        road.start.Y - this.minY,
+        road.end.X - this.minX,
+        road.end.Y - this.minY
+      );
     }
 
     // Dibujar las casas
@@ -93,7 +117,11 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
       noFill();
       strokeWeight(9);
       let t = (sin(frameCount * 0.07) + 1) / 2; // Oscila entre 0 y 1
-      let colorOscilante = lerpColor(color(0), color(red(this.color), green(this.color), blue(this.color)), t);
+      let colorOscilante = lerpColor(
+        color(0),
+        color(red(this.color), green(this.color), blue(this.color)),
+        t
+      );
       stroke(colorOscilante);
 
       beginShape();
@@ -104,19 +132,23 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
     }
   }
 
+  displayInfo( infoX, infoY) {
+    text("Tipo: Localidad", infoX, infoY + 20);
+      text("Nombre: " + this.name, infoX, infoY + 40);
+      text("Población: " + this.population, infoX, infoY + 60);
+      text("Área: " + this.getArea().toFixed(2), infoX, infoY + 80);
+  }
 
-  
   // Método para calcular el área del polígono
   getArea() {
-    return Math.abs( calculateArea(this.points));
+    return Math.abs(calculateArea(this.points));
   }
 
   // Método privado para calcular el área
-  
 
   // Método para asegurar que el polígono tiene orientación clockwise
   ensureClockwise() {
-    if ( calculateArea(this.points) > 0) {
+    if (calculateArea(this.points) > 0) {
       this.points.reverse();
     }
   }
@@ -149,10 +181,10 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
     };
 
     // Calcular límites del bounding box del polígono
-    let minX = Math.min(...this.points.map(p => p.X));
-    let maxX = Math.max(...this.points.map(p => p.X));
-    let minY = Math.min(...this.points.map(p => p.Y));
-    let maxY = Math.max(...this.points.map(p => p.Y));
+    let minX = Math.min(...this.points.map((p) => p.X));
+    let maxX = Math.max(...this.points.map((p) => p.X));
+    let minY = Math.min(...this.points.map((p) => p.Y));
+    let maxY = Math.max(...this.points.map((p) => p.Y));
 
     // Calcular centro del bounding box
     let centerX = (minX + maxX) / 2;
@@ -212,18 +244,21 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
     let inside = false;
     let n = this.points.length;
     for (let i = 0, j = n - 1; i < n; j = i++) {
-      let xi = this.points[i].X, yi = this.points[i].Y;
-      let xj = this.points[j].X, yj = this.points[j].Y;
+      let xi = this.points[i].X,
+        yi = this.points[i].Y;
+      let xj = this.points[j].X,
+        yj = this.points[j].Y;
 
-      let intersect = ((yi > y) !== (yj > y)) &&
-                      (x < (xj - xi) * (y - yi) / (yj - yi + 0.0000001) + xi);
+      let intersect =
+        yi > y !== yj > y &&
+        x < ((xj - xi) * (y - yi)) / (yj - yi + 0.0000001) + xi;
       if (intersect) inside = !inside;
     }
     return inside;
   }
 
   // Método para intentar generar una casa
-    // Método para intentar generar una casa
+  // Método para intentar generar una casa
   // Método para intentar generar una casa
   generateHouse() {
     // Definir la frecuencia y chance de generar una casa
@@ -244,7 +279,7 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
     let t = random(); // 0 a 1
     let entryPoint = {
       X: lerp(segment.start.X, segment.end.X, t),
-      Y: lerp(segment.start.Y, segment.end.Y, t)
+      Y: lerp(segment.start.Y, segment.end.Y, t),
     };
 
     // Definir el ancho de la entrada
@@ -282,7 +317,7 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
 
     // Definir el tamaño de la casa
     let houseWidth = entryWidth;
-    let houseHeight = random(entryWidth, this.spacing *this.lenPatio);
+    let houseHeight = random(entryWidth, this.spacing * this.lenPatio);
 
     // Definir la separación entre la entrada y el camino/borde
     let separation = 5; // píxeles
@@ -296,14 +331,23 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
     // Definir los puntos de la casa (rectángulo)
     let housePoints = [
       { X: housePos.X, Y: housePos.Y },
-      { X: housePos.X + dir.X * houseWidth, Y: housePos.Y + dir.Y * houseWidth },
-      { X: housePos.X + dir.X * houseWidth + normal.X * houseHeight, Y: housePos.Y + dir.Y * houseWidth + normal.Y * houseHeight },
-      { X: housePos.X + normal.X * houseHeight, Y: housePos.Y + normal.Y * houseHeight }
+      {
+        X: housePos.X + dir.X * houseWidth,
+        Y: housePos.Y + dir.Y * houseWidth,
+      },
+      {
+        X: housePos.X + dir.X * houseWidth + normal.X * houseHeight,
+        Y: housePos.Y + dir.Y * houseWidth + normal.Y * houseHeight,
+      },
+      {
+        X: housePos.X + normal.X * houseHeight,
+        Y: housePos.Y + normal.Y * houseHeight,
+      },
     ];
 
     // Calcular el área original de la casa propuesta
     let originalArea = calculateArea(housePoints);
-  
+
     // Crear una instancia de House
     let house = new House(housePoints);
 
@@ -350,7 +394,7 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
       // Calcular el vector normalizado para el camino
       let roadDir = {
         X: road.end.X - road.start.X,
-        Y: road.end.Y - road.start.Y
+        Y: road.end.Y - road.start.Y,
       };
       let roadMag = Math.hypot(roadDir.X, roadDir.Y);
       if (roadMag === 0) continue; // Evitar división por cero
@@ -359,7 +403,7 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
 
       let roadNormal = {
         X: -roadDir.Y,
-        Y: roadDir.X
+        Y: roadDir.X,
       };
 
       // Definir los cuatro puntos del rectángulo bufferizado
@@ -367,7 +411,7 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
         movePoint(road.start, roadNormal, bufferDistance),
         movePoint(road.end, roadNormal, bufferDistance),
         movePoint(road.end, roadNormal, -bufferDistance),
-        movePoint(road.start, roadNormal, -bufferDistance)
+        movePoint(road.start, roadNormal, -bufferDistance),
       ];
 
       roadBuffers.push(bufferPoints);
@@ -381,7 +425,7 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
       // Calcular el vector normalizado para el borde
       let boundaryDir = {
         X: boundary.end.X - boundary.start.X,
-        Y: boundary.end.Y - boundary.start.Y
+        Y: boundary.end.Y - boundary.start.Y,
       };
       let boundaryMag = Math.hypot(boundaryDir.X, boundaryDir.Y);
       if (boundaryMag === 0) continue; // Evitar división por cero
@@ -390,19 +434,27 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
 
       let boundaryNormal = {
         X: -boundaryDir.Y,
-        Y: boundaryDir.X
+        Y: boundaryDir.X,
       };
 
       // Definir los dos puntos de la entrada desplazados hacia el interior
-      let bufferStart = movePoint(boundary.start, boundaryNormal, boundaryBufferDistance);
-      let bufferEnd = movePoint(boundary.end, boundaryNormal, boundaryBufferDistance);
+      let bufferStart = movePoint(
+        boundary.start,
+        boundaryNormal,
+        boundaryBufferDistance
+      );
+      let bufferEnd = movePoint(
+        boundary.end,
+        boundaryNormal,
+        boundaryBufferDistance
+      );
 
       // Definir el polígono del buffer (narrow rectangle hacia el interior)
       let bufferPolygon = [
         bufferStart,
         bufferEnd,
         movePoint(bufferEnd, boundaryDir, 1), // Pequeño desplazamiento para cerrar el polígono
-        movePoint(bufferStart, boundaryDir, 1)
+        movePoint(bufferStart, boundaryDir, 1),
       ];
 
       boundaryBuffers.push(bufferPolygon);
@@ -453,7 +505,11 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
       clipperSubtract.AddPath(finalHouse, ClipperLib.PolyType.ptSubject, true);
 
       // Agregar la casa existente como clip
-      clipperSubtract.AddPath(existingHouse.getPolygon(), ClipperLib.PolyType.ptClip, true);
+      clipperSubtract.AddPath(
+        existingHouse.getPolygon(),
+        ClipperLib.PolyType.ptClip,
+        true
+      );
 
       // Definir la solución
       let subtractSolution = new ClipperLib.Paths();
@@ -514,19 +570,19 @@ this.buffer = createGraphics(bufferWidth, bufferHeight);
   }
 }
 function calculateArea(points) {
-    let area = 0;
-    let n = points.length;
-    for (let i = 0; i < n; i++) {
-      let j = (i + 1) % n;
-      area += points[i].X * points[j].Y;
-      area -= points[j].X * points[i].Y;
-    }
-    return area / 2;
+  let area = 0;
+  let n = points.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += points[i].X * points[j].Y;
+    area -= points[j].X * points[i].Y;
   }
+  return area / 2;
+}
 
 function movePoint(point, normal, distance) {
   return {
     X: point.X + normal.X * distance,
-    Y: point.Y + normal.Y * distance
+    Y: point.Y + normal.Y * distance,
   };
 }

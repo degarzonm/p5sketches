@@ -40,4 +40,8 @@ class Road {
       }
       return inside;
     }
+
+    displayInfo(infoX, infoY) {
+      text("Tipo: Camino", infoX, infoY + 20);
+    }
   }
